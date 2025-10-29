@@ -26,65 +26,45 @@
     }
 
 <script>
-  // 1) Pega aquí tu URL de producción (no la de test)
-  const WEBHOOK_URL = "https://n8n.srv958468.hstgr.cloud/webhook-test/demo-start";
+  const WEBHOOK_URL = "https://n8n.srv958468.hstgr.cloud/webhook-test/demo-start"; // cámbialo por tu URL real
 
-  // 2) Crea/recupera un id de sesión para “reconocer” ese navegador
+  // Identificador de sesión del navegador
   function getSessionId() {
-    try {
-      let id = localStorage.getItem("demoSessionId");
-      if (!id) {
-        id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : ("sid_" + Math.random().toString(36).slice(2));
-        localStorage.setItem("demoSessionId", id);
-      }
-      return id;
-    } catch {
-      // Si el navegador bloquea localStorage, inventamos uno temporal
-      return "sid_" + Math.random().toString(36).slice(2);
+    let id = localStorage.getItem("demoSessionId");
+    if (!id) {
+      id = (crypto.randomUUID ? crypto.randomUUID() : "sid_" + Math.random().toString(36).slice(2));
+      localStorage.setItem("demoSessionId", id);
     }
+    return id;
   }
 
-  // 3) Enviar el aviso a n8n (forma sencilla y robusta)
-  function avisarAN8N() {
+  // Enviar aviso al webhook al abrir la página
+  (function avisarAN8N() {
     const payload = {
-      event: "start_demo",
+      event: "open_demo_page",
       sessionId: getSessionId(),
       page: location.href,
-      firstSeen: localStorage.getItem("demoFirstSeen") || new Date().toISOString(),
+      referrer: document.referrer,
       ts: new Date().toISOString()
     };
-    // Guardamos firstSeen si no existía
-    if (!localStorage.getItem("demoFirstSeen")) {
-      localStorage.setItem("demoFirstSeen", payload.firstSeen);
-    }
 
-    // Enviamos con sendBeacon para evitar problemas (no necesitamos leer respuesta)
     try {
       const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-      navigator.sendBeacon(WEBHOOK_URL, blob);
-    } catch {
-      // Si falla, prueba con fetch sencillo
-      fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        keepalive: true
-      }).catch(() => {});
-    }
-  }
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(WEBHOOK_URL, blob);
+        return;
+      }
+    } catch {}
 
-  // 4) Conecta tu botón al aviso
-  // Cambia #start-btn por el id real de tu botón si es distinto
-  const btn = document.getElementById("start-btn");
-  if (btn) {
-    btn.addEventListener("click", () => {
-      avisarAN8N();   // <<< dispara el webhook
-      // Aquí ya puedes seguir con lo que haga tu botón (mostrar quiz, etc.)
-    });
-  }
+    fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true
+    }).catch(() => {});
+  })();
 </script>
 
-    
     body {
       font-family: 'Quicksand', sans-serif;
       background: linear-gradient(135deg, #f0f9ff 0%, #f0fdf4 100%);
